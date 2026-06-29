@@ -258,7 +258,3 @@ saveRDS(Figure3, "output/Figure3_vaccination.rds")
 print(Figure1)
 print(Figure2)
 print(Figure3)
-
-
-
-
