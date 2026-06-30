@@ -175,7 +175,7 @@ vaccine_colors <- c(
   "4th Dose" = "#BDCE45"
 )
 
-# --- 7. CREATE VACCINATION PLOT ---
+# --- 8. CREATE VACCINATION PLOT ---
 
 create_vaccination_plot <- function(data, colors = vaccine_colors) {
   
@@ -244,7 +244,7 @@ create_vaccination_plot <- function(data, colors = vaccine_colors) {
 Figure3 <- create_vaccination_plot(all_vaccine_data)
 
 
-# --- 8. SAVE RESULTS ---
+# --- 9. SAVE RESULTS ---
 
 # Create output directory if it doesn't exist
 dir.create("output", showWarnings = FALSE)

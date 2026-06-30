@@ -1,7 +1,7 @@
 # ============================================================
 # SARS-CoV-2 Landscape GAM - Production Script
 # Author: Pablo
-# Version: 
+# Version: 1
 # ============================================================
 
 # --- 1. LOAD LIBRARIES ---
@@ -10,7 +10,7 @@ library(mgcv)
 library(plotly)
 library(stringr)
 
-# --- 3. LOAD PROCESSED DATA ---
+# --- 2. LOAD PROCESSED DATA ---
 df_coords <- readRDS("dataset/df_coords_processed.rds") ## Rössler cartography 
 db_long <- readRDS("dataset/db_long_processed.rds")
 
@@ -19,7 +19,7 @@ message("✓ Datos cargados")
 message("  - df_coords: ", nrow(df_coords), " rows")
 message("  - db_long: ", nrow(db_long), " rows")
 
-# --- 4. COLORS ---
+# --- 3. COLORS ---
 mapColors <- c(
   "Ancestral" = "#393b79",
   "Alpha"     = "#637939",
@@ -35,7 +35,7 @@ mapColors <- c(
   "XBB.1"     = "#5B004C"
 )
 
-# --- 5. FUNCTION: CREATE FIGURE ---
+# --- 4. FUNCTION: CREATE FIGURE ---
 
 make_survey_fig <- function(
     survey_name, db_long, df_coords,
@@ -210,7 +210,7 @@ make_survey_fig <- function(
   return(fig)
 }
 
-# --- 6. ADJUST FIGURE VIEW ---
+# --- 5. ADJUST FIGURE VIEW ---
 
 adjust_3d_figure <- function(
     figure, 
@@ -244,7 +244,7 @@ adjust_3d_figure <- function(
     )
 }
 
-# --- 7. GENERATE ALL FIGURES ---
+# --- 6. GENERATE ALL FIGURES ---
 
 message("\n=== GENERATING FIGURES ===\n")
 
@@ -270,7 +270,101 @@ fig_L47 <- figures[["L47"]]
 fig_L48 <- figures[["L48"]]
 fig_L49 <- figures[["L49"]]
 
-# --- 8. DISPLAY FIGURES ---
+
+# ============================================================
+# HIGHEST AND LOWEST POINTS OF EACH GAM SURFACE
+# ============================================================
+
+# --- Function to find highest and lowest points of a GAM surface ---
+find_surface_extremes <- function(survey_name, db_long, df_coords, grid_size = 100) {
+  
+  # Extract data for this survey
+  db_sub <- db_long %>% filter(stringr::str_starts(sr_name, survey_name))
+  merged <- merge(db_sub, df_coords, by = "ag_name", all.x = TRUE)
+  
+  data <- data.frame(
+    x = merged$x,
+    y = merged$y,
+    z = as.numeric(merged$titer),
+    variant = merged$ag_name
+  )
+  
+  # Fit GAM
+  gam_fit <- mgcv::gam(z ~ s(x, y, k = 12), data = data)
+  
+  # Create prediction grid
+  x_seq <- seq(min(data$x), max(data$x), length.out = grid_size)
+  y_seq <- seq(min(data$y), max(data$y), length.out = grid_size)
+  grid <- expand.grid(x = x_seq, y = y_seq)
+  grid$z_hat <- predict(gam_fit, newdata = grid)
+  
+  # Find highest point (peak)
+  max_idx <- which.max(grid$z_hat)
+  peak <- grid[max_idx, ]
+  
+  # Find lowest point (valley)
+  min_idx <- which.min(grid$z_hat)
+  valley <- grid[min_idx, ]
+  
+  # Find nearest variants
+  dists_peak <- sqrt((data$x - peak$x)^2 + (data$y - peak$y)^2)
+  nearest_idx_peak <- which.min(dists_peak)
+  nearest_variant_peak <- data$variant[nearest_idx_peak]
+  
+  dists_valley <- sqrt((data$x - valley$x)^2 + (data$y - valley$y)^2)
+  nearest_idx_valley <- which.min(dists_valley)
+  nearest_variant_valley <- data$variant[nearest_idx_valley]
+  
+  # Return result
+  data.frame(
+    Survey = survey_name,
+    # Peak (highest)
+    Peak_Height = round(peak$z_hat * 100, 2),
+    Peak_Height_z = round(peak$z_hat, 4),
+    Peak_x = round(peak$x, 3),
+    Peak_y = round(peak$y, 3),
+    Peak_Variant = nearest_variant_peak,
+    # Valley (lowest)
+    Valley_Height = round(valley$z_hat * 100, 2),
+    Valley_Height_z = round(valley$z_hat, 4),
+    Valley_x = round(valley$x, 3),
+    Valley_y = round(valley$y, 3),
+    Valley_Variant = nearest_variant_valley,
+    # Range (difference)
+    Range = round((peak$z_hat - valley$z_hat) * 100, 2)
+  )
+}
+
+# --- Find extremes for all surveys ---
+surveys <- c("L45", "L46", "L47", "L48", "L49")
+extremes <- do.call(rbind, lapply(surveys, find_surface_extremes, db_long, df_coords))
+
+# --- Display results ---
+cat("\n", "=", rep("-", 80), "\n")
+cat("  HIGHEST AND LOWEST POINTS OF EACH GAM SURFACE\n")
+cat("=", rep("-", 80), "\n")
+print(extremes, row.names = FALSE)
+cat("=", rep("-", 80), "\n\n")
+
+# --- Summary table (simplified) ---
+summary_extremes <- extremes %>%
+  select(Survey, Peak_Height, Peak_Variant, Valley_Height, Valley_Variant, Range)
+
+cat("\n", "=", rep("-", 70), "\n")
+cat("  SUMMARY - PEAK vs VALLEY\n")
+cat("=", rep("-", 70), "\n")
+print(summary_extremes, row.names = FALSE)
+cat("=", rep("-", 70), "\n\n")
+
+# --- Save results ---
+dir.create("output", showWarnings = FALSE)
+write.csv(extremes, "output/gam_extremes.csv", row.names = FALSE)
+saveRDS(extremes, "output/gam_extremes.rds")
+
+message("\n✓ Extremes saved to 'output/gam_extremes.csv'")
+
+
+# --- 7. DISPLAY FIGURES ---
 
 message("\n=== DISPLAYING FIGURES ===\n")
 print(fig_L45)
@@ -279,7 +373,7 @@ print(fig_L47)
 print(fig_L48)
 print(fig_L49)
 
-# --- 9. SAVE FIGURES ---
+# --- 8. SAVE FIGURES ---
 
 message("\n=== SAVING FIGURES ===\n")
 
