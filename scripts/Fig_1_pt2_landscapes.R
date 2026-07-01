@@ -11,9 +11,20 @@ library(plotly)
 library(stringr)
 
 # --- 2. LOAD PROCESSED DATA ---
+db <- readRDS("dataset/192 long.rds")
+
+db <- db %>%
+  mutate(titer = if_else(titer < 0, 0, titer))
+db <- db[, c("titer", "sr_name", "ag_name")]
+
+if (!file.exists("dataset/db_long_processed.rds")) {
+  saveRDS(db, "dataset/db_long_processed.rds")
+}
+
 df_coords <- readRDS("dataset/df_coords_processed.rds") ## Rössler cartography 
 db_long <- readRDS("dataset/db_long_processed.rds")
 
+head(db_long,n = 10)
 
 message("✓ Datos cargados")
 message("  - df_coords: ", nrow(df_coords), " rows")
@@ -427,8 +438,7 @@ panel_layout <- tags$div(
 # Mostrar como página HTML
 browsable(panel_layout)
 
-save_html(browsable(panel_layout), file = "Longitudinal_landscapes.html")
-
+save_html(browsable(panel_layout), file = "Figures 3d/Longitudinal_landscapes.html")
 
 
 # ============================================================

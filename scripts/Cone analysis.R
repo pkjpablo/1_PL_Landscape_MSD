@@ -201,6 +201,7 @@ fitted_values_L49 <- lndscp_fits[[5]][["fitted.values"]]
 # Display figure
 L45_49
 
+
 # Extract fitted values for each survey group
 fitted_values_L45 <- lndscp_fits[[1]][["fitted.values"]]
 fitted_values_L46 <- lndscp_fits[[2]][["fitted.values"]]
